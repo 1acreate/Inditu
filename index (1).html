@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>IndiTubeAuDiOpLaY - Music Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom right, #f3e5f5, #e1f5fe);
+      margin: 0;
+      padding: 0;
+      animation: bgmove 20s ease infinite alternate;
+    }
+    @keyframes bgmove {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 100% 50%; }
+    }
+    header {
+      background: linear-gradient(to right, #7b1fa2, #4a148c);
+      color: white;
+      padding: 20px;
+      font-size: 28px;
+      text-align: center;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-shadow: 1px 1px 3px #000;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      padding: 20px;
+    }
+    .section {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    button {
+      background: #4caf50;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s ease;
+    }
+    button:hover {
+      background: #388e3c;
+    }
+    audio {
+      width: 100%;
+      margin-top: 10px;
+    }
+    .song-card {
+      margin-bottom: 20px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    .search-box {
+      padding: 10px;
+      border: 2px solid #7b1fa2;
+      border-radius: 8px;
+      width: 100%;
+      margin-bottom: 20px;
+      font-size: 16px;
+    }
+    .earnings-box {
+      background: #c8e6c9;
+      padding: 12px;
+      border-radius: 10px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 18px;
+      color: #2e7d32;
+      box-shadow: inset 0 0 5px #81c784;
+      margin-bottom: 20px;
+    }
+    .like-btn {
+      background: #ffca28;
+      color: #000;
+      border: none;
+      padding: 6px 12px;
+      margin-top: 8px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .top-songs {
+      background: #fce4ec;
+      padding: 10px;
+      margin-top: 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      color: #ad1457;
+    }
+    .withdrawal-section {
+      background: #e3f2fd;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 10px;
+      box-shadow: inset 0 0 6px #90caf9;
+    }
+    .withdraw-btn {
+      background-color: #f44336;
+      color: white;
+      transition: all 0.3s ease;
+    }
+    .withdraw-btn.clicked {
+      background-color: #4caf50;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <span style="color:#ffeb3b">Indi</span>
+  <span style="color:#00bcd4">Tube</span>
+  <span style="color:#8bc34a">Au</span>
+  <span style="color:#e91e63">Di</span>
+  <span style="color:#3f51b5">Op</span>
+  <span style="color:#f44336">La</span>
+  <span style="color:#009688">Y</span>
+</header>
+<div class="container">
+  <div class="earnings-box">Total Earnings: ₹<span id="earnings">0</span></div>
+
+  <div id="uploadSection" class="section">
+    <h3>Upload a Song</h3>
+    <input id="songTitle" placeholder="Song Title">
+    <input type="file" id="songFile" accept="audio/*">
+    <button onclick="uploadSong()">Upload MP3</button>
+  </div>
+
+  <div id="songListSection" class="section">
+    <h3>All Songs</h3>
+    <input id="searchInput" class="search-box" placeholder="Search song title..." oninput="searchSongs()">
+    <div id="songList"></div>
+    <div id="topSongs" class="top-songs"></div>
+  </div>
+
+  <div class="section">
+    <h3>Withdrawal Request</h3>
+    <input id="withdrawName" placeholder="Your Name">
+    <input id="withdrawNumber" placeholder="Mobile Number">
+    <input id="upiInput" placeholder="Enter UPI ID">
+    <button class="withdraw-btn" id="withdrawBtn" onclick="submitWithdrawal()">Submit Withdrawal</button>
+  </div>
+</div>
+<audio id="ding" src="https://www.soundjay.com/buttons/sounds/button-16.mp3" preload="auto"></audio>
+<script>
+let db;
+let totalEarnings = parseInt(localStorage.getItem("earnings")) || 0;
+updateEarningsUI();
+
+const request = indexedDB.open("IndiTubeMusic", 1);
+request.onupgradeneeded = e => {
+  db = e.target.result;
+  if (!db.objectStoreNames.contains("songs")) db.createObjectStore("songs", { keyPath: "id", autoIncrement: true });
+};
+request.onsuccess = e => {
+  db = e.target.result;
+  loadSongs();
+};
+
+function updateEarnings(amount) {
+  totalEarnings += amount;
+  localStorage.setItem("earnings", totalEarnings);
+  updateEarningsUI();
+}
+
+function updateEarningsUI() {
+  document.getElementById("earnings").innerText = totalEarnings;
+}
+
+function uploadSong() {
+  const title = document.getElementById("songTitle").value.trim();
+  const file = document.getElementById("songFile").files[0];
+  if (!title || !file) return alert("Please enter title and select a file");
+
+  const reader = new FileReader();
+  reader.onloadend = function () {
+    const blob = new Blob([reader.result], { type: file.type });
+    const songData = { title, blob, listens: 0, likes: 0 };
+    const tx = db.transaction("songs", "readwrite");
+    const store = tx.objectStore("songs");
+    store.add(songData).onsuccess = () => {
+      updateEarnings(12);
+      loadSongs();
+    };
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function loadSongs() {
+  const tx = db.transaction("songs", "readonly");
+  const store = tx.objectStore("songs");
+  const req = store.getAll();
+  req.onsuccess = () => {
+    const list = document.getElementById("songList");
+    list.innerHTML = '';
+    req.result.forEach(song => {
+      const url = URL.createObjectURL(song.blob);
+      const div = document.createElement("div");
+      div.className = 'song-card';
+      div.innerHTML = `<b>${song.title}</b><br><audio controls onended="earnListen()"><source src="${url}" type="audio/mp3"></audio>
+        <button class='like-btn' onclick='likeSong(${song.id})'>❤️ Like</button>`;
+      list.appendChild(div);
+    });
+  };
+}
+
+function earnListen() {
+  updateEarnings(4);
+}
+
+function likeSong(id) {
+  // Not stored but adds visual experience
+  alert("You liked this song! ❤️");
+}
+
+function searchSongs() {
+  const term = document.getElementById("searchInput").value.toLowerCase();
+  const tx = db.transaction("songs", "readonly");
+  const store = tx.objectStore("songs");
+  const req = store.getAll();
+  req.onsuccess = () => {
+    const filtered = req.result.filter(s => s.title.toLowerCase().includes(term));
+    const list = document.getElementById("songList");
+    list.innerHTML = '';
+    filtered.forEach(song => {
+      const url = URL.createObjectURL(song.blob);
+      const div = document.createElement("div");
+      div.className = 'song-card';
+      div.innerHTML = `<b>${song.title}</b><br><audio controls onended="earnListen()"><source src="${url}" type="audio/mp3"></audio>
+        <button class='like-btn' onclick='likeSong(${song.id})'>❤️ Like</button>`;
+      list.appendChild(div);
+    });
+  };
+}
+
+function submitWithdrawal() {
+  const name = document.getElementById("withdrawName").value.trim();
+  const number = document.getElementById("withdrawNumber").value.trim();
+  const upi = document.getElementById("upiInput").value.trim();
+  if (!name || !number || !upi) return alert("Please fill all fields");
+  const btn = document.getElementById("withdrawBtn");
+  btn.classList.add("clicked");
+  btn.innerText = "Request Sent ✅";
+  document.getElementById("ding").play();
+  alert("Withdrawal requested by " + name + " (" + number + ") for UPI: " + upi);
+}
+</script>
+</body>
+</html>
